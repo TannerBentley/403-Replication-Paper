@@ -1,0 +1,348 @@
+---
+title: "Untitled"
+output: pdf_document
+date: "2024-11-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(haven)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(sandwich)
+library(lmtest)
+library(estimatr)
+library(robustbase)
+library(stargazer)
+library(modelsummary)
+library(kableExtra)
+library(tinytable)
+```
+
+```{r}
+setwd("/Users/tannerbentley/Downloads/RStudio/Papers and Projects/Poli 410 Replication/Mason Replication ")
+ANES_cumulative <- read_dta("NES cumulative coded by author_1.dta")
+```
+
+```{r}
+##Creating Table 1 
+variables <- c("attend", "evangelical", "thermbias", "likebias", 
+               "pastactiv", "angercand", "pidstr", "issuestr", 
+               "idcomplexity", "educ", "male", "white", 
+               "age", "south", "urban")
+
+ANES_cumulative$miss <- rowSums(is.na(ANES_cumulative[, variables]))
+
+#Getting rid of any responses that have NA's for regression 
+filtered_cumulative_ANES <- ANES_cumulative[ANES_cumulative$miss == 0, ]
+
+#thermbias
+thermbias <- lm_robust(thermbias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model1 <- lm(thermbias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical, 
+            data = filtered_cumulative_ANES)
+
+thermbias2 <- lm_robust(thermbias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model2 <- lm(thermbias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical, 
+            data = filtered_cumulative_ANES)
+
+#likebias
+likebias <- lm_robust(likebias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model3 <- lm(likebias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical, 
+            data = filtered_cumulative_ANES)
+
+likebias2 <- lm_robust(likebias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model4 <- lm(likebias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical, 
+            data = filtered_cumulative_ANES)
+
+#activism
+activism <- lm_robust(pastactiv ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model5 <- lm(pastactiv ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical, 
+            data = filtered_cumulative_ANES)
+
+activism2 <- lm_robust(pastactiv ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model6 <- lm(pastactiv ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical, 
+            data = filtered_cumulative_ANES)
+
+#anger, uses logit model
+anger <- glm(angercand ~ idcomplexity + issuestr2 + educ + male + white + age +
+              south + urban + attend + evangelical, 
+             data = filtered_cumulative_ANES, family = binomial)
+
+anger_clustered_se <- vcovCL(anger, cluster = ~year)
+
+#summary(anger)    
+coeftest(anger, vcov = anger_clustered_se)
+
+anger2 <- glm(angercand ~ pidstr + ideostr + issuestr2 + educ + male + white + age +
+              south + urban + attend + evangelical, 
+             data = filtered_cumulative_ANES, family = binomial)
+
+anger2_clustered_se <- vcovCL(anger2, cluster = ~year)
+
+```
+
+```{css, echo=FALSE}
+.table, th, td {
+  font-size: 0.9em;
+} 
+.table tbody td, .table thead tr {
+    white-space: nowrap;
+}
+```
+
+```{r}
+models <- list(model1, model2, model3, model4, model5, model6, anger, anger2)
+
+coef_map_vector <- c("idcomplexity" = "Sorting","pidstr" = "Partisan Stregnth", "ideostr" = "Ideological Stregnth","issuestr2" = "Issue Position","educ" = "Education", "male" = "Male","white" = "White","age" = "Age", "south" = "South", "urban" = "Urban", "attend" = "Church Attendence", "evangelical" = "Evangelical", "Intercept" = "Constant")
+
+gofmap <- list(
+  list("raw" = "r.squared", "clean" = "R-squared", "fmt" = 2),
+  list("raw" = "r2.tjur", "clean" = "Pseudo R-squared", "fmt" = 2), 
+  list("raw" = "nobs", "clean" = "N", "fmt" = 0))
+
+modelsummary(models, fmt = 2, coef_map = coef_map_vector, gof_map = gofmap, stars = TRUE) %>%
+   group_tt(
+   j = list("Temperture Thermometer" = 2:3, "Like Bias" = 4:5, "Activism" = 6:7, "Anger" = 8:9)) 
+```
+
+
+#additional controls 
+```{r}
+##Creating Table 1 
+variables <- c("attend", "evangelical", "thermbias", "likebias", 
+               "pastactiv", "angercand", "pidstr", "issuestr", 
+               "idcomplexity", "educ", "male", "white", 
+               "age", "south", "urban", "union")
+
+ANES_cumulative$miss <- rowSums(is.na(ANES_cumulative[, variables]))
+
+#Getting rid of any responses that have NA's for regression 
+filtered_cumulative_ANES <- ANES_cumulative[ANES_cumulative$miss == 0, ]
+
+#thermbias
+thermbias <- lm_robust(thermbias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model1 <- lm(thermbias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union, 
+            data = filtered_cumulative_ANES)
+
+thermbias2 <- lm_robust(thermbias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model2 <- lm(thermbias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union, 
+            data = filtered_cumulative_ANES)
+
+#likebias
+likebias <- lm_robust(likebias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model3 <- lm(likebias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union, 
+            data = filtered_cumulative_ANES)
+
+likebias2 <- lm_robust(likebias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model4 <- lm(likebias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union, 
+            data = filtered_cumulative_ANES)
+
+#activism
+activism <- lm_robust(pastactiv ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model5 <- lm(pastactiv ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union, 
+            data = filtered_cumulative_ANES)
+
+activism2 <- lm_robust(pastactiv ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model6 <- lm(pastactiv ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + union, 
+            data = filtered_cumulative_ANES)
+
+#anger, uses logit model
+anger <- glm(angercand ~ idcomplexity + issuestr2 + educ + male + white + age +
+              south + urban + attend + evangelical + union, 
+             data = filtered_cumulative_ANES, family = binomial)
+
+anger_clustered_se <- vcovCL(anger, cluster = ~year)
+
+#summary(anger)    
+coeftest(anger, vcov = anger_clustered_se)
+
+anger2 <- glm(angercand ~ pidstr + ideostr + issuestr2 + educ + male + white + age +
+              south + urban + attend + evangelical + union, 
+             data = filtered_cumulative_ANES, family = binomial)
+
+anger2_clustered_se <- vcovCL(anger2, cluster = ~year)
+
+```
+
+```{css, echo=FALSE}
+.table, th, td {
+  font-size: 0.9em;
+} 
+.table tbody td, .table thead tr {
+    white-space: nowrap;
+}
+```
+
+```{r}
+models <- list(model1, model2, model3, model4, model5, model6, anger, anger2)
+
+coef_map_vector <- c("idcomplexity" = "Sorting","pidstr" = "Partisan Stregnth", "ideostr" = "Ideological Stregnth","issuestr2" = "Issue Position","educ" = "Education", "male" = "Male","white" = "White","age" = "Age", "south" = "South", "urban" = "Urban", "attend" = "Church Attendence", "evangelical" = "Evangelical", "union" = "Union", "Intercept" = "Constant")
+
+gofmap <- list(
+  list("raw" = "r.squared", "clean" = "R-squared", "fmt" = 2),
+  list("raw" = "r2.tjur", "clean" = "Pseudo R-squared", "fmt" = 2), 
+  list("raw" = "nobs", "clean" = "N", "fmt" = 0))
+
+modelsummary(models, fmt = 2, coef_map = coef_map_vector, gof_map = gofmap, stars = TRUE) %>%
+   group_tt(
+   j = list("Temperture Thermometer" = 2:3, "Like Bias" = 4:5, "Activism" = 6:7, "Anger" = 8:9)) |>
+  style_tt(i = 25, j = c(2:9), bold = TRUE) 
+```
+
+```{r}
+##Creating Table 1 
+variables <- c("attend", "evangelical", "thermbias", "likebias", 
+               "pastactiv", "angercand", "pidstr", "issuestr", 
+               "idcomplexity", "educ", "male", "white", 
+               "age", "south", "urban", "married")
+
+ANES_cumulative$miss <- rowSums(is.na(ANES_cumulative[, variables]))
+
+#Getting rid of any responses that have NA's for regression 
+filtered_cumulative_ANES <- ANES_cumulative[ANES_cumulative$miss == 0, ]
+
+#thermbias
+thermbias <- lm_robust(thermbias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model1 <- lm(thermbias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married, 
+            data = filtered_cumulative_ANES)
+
+thermbias2 <- lm_robust(thermbias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model2 <- lm(thermbias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married, 
+            data = filtered_cumulative_ANES)
+
+#likebias
+likebias <- lm_robust(likebias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model3 <- lm(likebias ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married, 
+            data = filtered_cumulative_ANES)
+
+likebias2 <- lm_robust(likebias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model4 <- lm(likebias ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married, 
+            data = filtered_cumulative_ANES)
+
+#activism
+activism <- lm_robust(pastactiv ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model5 <- lm(pastactiv ~ idcomplexity + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married, 
+            data = filtered_cumulative_ANES)
+
+activism2 <- lm_robust(pastactiv ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married,
+  data = filtered_cumulative_ANES, 
+  clusters = filtered_cumulative_ANES$year
+  )
+
+model6 <- lm(pastactiv ~ pidstr + ideostr + issuestr2 + educ + male + white + age + south + urban + attend + evangelical + married, 
+            data = filtered_cumulative_ANES)
+
+#anger, uses logit model
+anger <- glm(angercand ~ idcomplexity + issuestr2 + educ + male + white + age +
+              south + urban + attend + evangelical + married, 
+             data = filtered_cumulative_ANES, family = binomial)
+
+anger_clustered_se <- vcovCL(anger, cluster = ~year)
+
+#summary(anger)    
+coeftest(anger, vcov = anger_clustered_se)
+
+anger2 <- glm(angercand ~ pidstr + ideostr + issuestr2 + educ + male + white + age +
+              south + urban + attend + evangelical + married, 
+             data = filtered_cumulative_ANES, family = binomial)
+
+anger2_clustered_se <- vcovCL(anger2, cluster = ~year)
+
+```
+
+```{css, echo=FALSE}
+.table, th, td {
+  font-size: 0.9em;
+} 
+.table tbody td, .table thead tr {
+    white-space: nowrap;
+}
+```
+
+```{r}
+models <- list(model1, model2, model3, model4, model5, model6, anger, anger2)
+
+coef_map_vector <- c("idcomplexity" = "Sorting","pidstr" = "Partisan Stregnth", "ideostr" = "Ideological Stregnth","issuestr2" = "Issue Position","educ" = "Education", "male" = "Male","white" = "White","age" = "Age", "south" = "South", "urban" = "Urban", "attend" = "Church Attendence", "evangelical" = "Evangelical", "married" = "Married", "Intercept" = "Constant")
+
+gofmap <- list(
+  list("raw" = "r.squared", "clean" = "R-squared", "fmt" = 2),
+  list("raw" = "r2.tjur", "clean" = "Pseudo R-squared", "fmt" = 2), 
+  list("raw" = "nobs", "clean" = "N", "fmt" = 0))
+
+modelsummary(models, fmt = 2, coef_map = coef_map_vector, gof_map = gofmap, stars = TRUE) %>%
+   group_tt(
+   j = list("Temperture Thermometer" = 2:3, "Like Bias" = 4:5, "Activism" = 6:7, "Anger" = 8:9)) |>
+  style_tt(i = 25, j = c(2:9), bold = TRUE)
+```
